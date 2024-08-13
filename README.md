@@ -1,0 +1,2 @@
+# codetests
+Bash shorcuts

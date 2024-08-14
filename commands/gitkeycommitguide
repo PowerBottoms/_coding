@@ -1,0 +1,137 @@
+Once you have set up your SSH key and added it to your GitHub account, you can use it to make commits to your GitHub repository. Here's a step-by-step guide on how to ensure you're using SSH for your Git operations and how to make commits:
+#DONT FORGET TO 
+git remote set-url origin git@github.com:PowerBottoms/codetests.git
+
+### 1. **Configure Git to Use SSH**
+
+#Ensure your local Git repository is configured to use the SSH URL for the remote repository rather than the HTTPS URL.
+
+#1. **Navigate to Your Repository**:
+
+#   Open your terminal and change to your local repository directory:
+
+#   ```bash
+   cd /path/to/your/local/repository
+#  ```
+
+#2. **Check the Remote URL**:
+
+#   Use the `git remote -v` command to see the current remote URLs:
+
+#   ```bash
+   git remote -v
+#   ```
+
+#   You might see output like this:
+
+#   ```text
+   origin https://github.com/PowerBottoms/codetests.git (fetch)
+   origin https://github.com/PowerBottoms/codetests.git (push)
+#   ```
+
+#   If the URL starts with `https://`, you need to update it to use `git@github.com:`.
+
+#3. **Change the Remote URL to SSH**:
+
+#   Use the `git remote set-url` command to update the remote URL to use SSH:
+
+#   ```bash
+   git remote set-url origin git@github.com:PowerBottoms/codetests.git
+#   ```
+
+#   Verify the change with:
+
+#   ```bash
+   git remote -v
+#   ```
+
+#   The output should now show:
+
+#   ```text
+   origin git@github.com:PowerBottoms/codetests.git (fetch)
+   origin git@github.com:PowerBottoms/codetests.git (push)
+#   ```
+
+### 2. **Make and Commit Changes**
+
+#1. **Check the Status**:
+
+#   See the changes that are staged, unstaged, or untracked:
+
+#   ```bash
+   git status
+#   ```
+
+#2. **Stage Your Changes**:
+
+#   Add the files you want to commit:
+
+#   ```bash
+   git add .
+#   ```
+
+#   or specify individual files:
+
+#   ```bash
+   git add file1.txt file2.txt
+#   ```
+
+#3. **Commit Your Changes**:
+
+#   Commit the changes with a descriptive message:
+
+#   ```bash
+   git commit -m "Your descriptive commit message"
+#   ```
+
+#4. **Push Your Changes**:
+
+#   Push the committed changes to the remote repository using SSH:
+
+#   ```bash
+   git push origin main
+#   ```
+
+#   Replace `main` with your branch name if you're working on a different branch.
+
+### 3. **Verify Your SSH Setup**
+
+#To ensure that your SSH setup is working correctly, you can run:
+
+#```bash
+ssh -T git@github.com
+#```
+
+#You should receive a success message indicating that you've authenticated successfully.
+
+### Example Workflow
+
+#Here’s a summary of the commands you might use in your workflow:
+
+#```bash
+# Navigate to your repository
+cd /path/to/your/local/repository
+
+# Check the current remote URL
+git remote -v
+
+# Update remote URL to use SSH
+git remote set-url origin git@github.com:PowerBottoms/codetests.git
+
+# Check repository status
+git status
+
+# Stage changes
+git add .
+
+# Commit changes
+git commit -m "Your commit message"
+
+# Push changes
+git push origin main
+
+# Verify SSH connection
+ssh -T git@github.com
+```
+
+This setup allows you to use SSH for secure and efficient Git operations with GitHub. If you encounter any issues, ensure your SSH key is properly added to GitHub and your SSH agent is running.

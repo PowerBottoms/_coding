@@ -26,7 +26,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 4 {
-        eprintln!("Usage: <program> <principal> <fee> <max_freq> <interest rate> optional:<gains>");
+        eprintln!("Usage: <program> <principal> <fee> <max_freq> <interest rate> optional:<gains>, <asset name>");
         eprintln!("Try '<program> --help' for more information.");
         process::exit(1);
     }
@@ -40,7 +40,7 @@ fn main() {
     let fee: f64 = args[2].parse().expect("Invalid fee amount");
     let max_freq: usize = args[3].parse().expect("Invalid maximum frequency");
     let interest_rate: f64 = args[4].parse().expect("Invalid interest rate");
-    let gains = args.get(5).map(|s| s.as_str()).unwrap_or("");
+    let gains = args.get(6).map(|s| s.as_str()).unwrap_or("");
     
     let untouched = (1.0 + interest_rate) * principal;
     let untouched_claim = interest_rate * principal;    
@@ -64,7 +64,7 @@ fn main() {
         }
 
         let gain = future_value_old - principal;
-        let claim_amount = (0.26 / freq as f64) * principal;
+        let claim_amount = (interest_rate / freq as f64) * principal;
         let fees = fee * freq as f64 * (1.0 + interest_rate);
         let strat_profit = future_value_new - untouched - fees;
 	
@@ -86,13 +86,16 @@ fn main() {
         }
         
     }
-    
+    let asset_name = &args[5];
     
     println!("\n \n \n \n");
     let freq_time = 365.0 / optimal_freq as f64;
-    println!( "The optimal claiming frequency for maximum profits is {:.5} days. Yielding {:.5} after a year of compounding.",
+    let optimal_freq_claim = principal * (interest_rate / optimal_freq as f64);
+    println!( "The optimal claiming frequency is {:.5} days which yields {:.5}. Yielding {:.5} more {:.5} than not compounding after a year.",
         format!("{}",freq_time).bright_green(),
+        format!("{}",optimal_freq_claim).bright_green(),
         format!("{}",optimal_strat_profit).bright_green(),
+        format!("{}",asset_name).bright_blue(),
     ); 
     println!("With a potential new balance of {} and a gain of {}", 
         format!("{}", optimal_freq_balance).bright_green(),

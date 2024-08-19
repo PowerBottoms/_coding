@@ -1,6 +1,8 @@
 use std::env;
 use std::process;
+//use std::process::Command;
 use colored::*;
+mod nomic_commands;
 
 // Function to display the help section
 fn display_help() {
@@ -13,6 +15,7 @@ fn display_help() {
     println!("  fee         The fee per period (e.g., 1.5).");
     println!("  max_freq    The maximum number of periods to test (e.g., 365).");
     println!("  interest    The annual interest rate as a decimal (e.g., 0.05 for 5%).");
+    println!("  commission  The commission charged as decimal (e.g, 0.05 for 5%");
     println!();
     println!("Options:");
     println!("  -h, --help  Display this help message and exit.");
@@ -23,10 +26,11 @@ fn display_help() {
 }
 
 fn main() {
+    println!("==============================================================================================================================================");
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 4 {
-        eprintln!("Usage: <program> <principal> <fee> <max_freq> <interest rate> optional:<gains>, <asset name>");
+        eprintln!("Usage: <program> <principal> <fee> <max_freq> <interest rate> OPTIONAL: <asset name>, <gains>");
         eprintln!("Try '<program> --help' for more information.");
         process::exit(1);
     }
@@ -35,24 +39,34 @@ fn main() {
         display_help();
     }
 
-    // Data to calculate
+    ///////////////////ARGUMENTS////////////////////
     let principal: f64 = args[1].parse().expect("Invalid principal amount");
     let fee: f64 = args[2].parse().expect("Invalid fee amount");
     let max_freq: usize = args[3].parse().expect("Invalid maximum frequency");
-    let interest_rate: f64 = args[4].parse().expect("Invalid interest rate");
-    let gains = args.get(6).map(|s| s.as_str()).unwrap_or("");
-    
-    let untouched = (1.0 + interest_rate) * principal;
-    let untouched_claim = interest_rate * principal;    
+    let mut interest_rate: f64 = args[4].parse().expect("Invalid interest rate");
+    let commission: f64 = args[5].parse().expect("A commission value is required, put 0 if no commission");       
+    /////////////OPTIONAL ARGUMENTS/////////////
+    let asset_name = if args.len() > 6 { &args[6] } else {
+        "" // Default value if the argument is not provided
+    }; 
+    let gains = args.get(7).map(|s| s.as_str()).unwrap_or("Optional: shows gains accumulating");
 
     let mut optimal_freq = 0;
     let mut max_profit = f64::MIN;
     
     let mut optimal_strat_profit = 0.0;
     let mut optimal_freq_balance = 0.0;
-    
+    //////////////TRYING TO CALCULATE COMMISSION////////
+    if commission > 0.0 
+    {
+    interest_rate = interest_rate - (interest_rate * commission);  
+    }
+    /////////////UNTOUCHED CLAIM///////////////////////////////        
+    let untouched = ( 1.0 + interest_rate) * principal;
+    let untouched_claim = interest_rate * principal;      
+    //////////////MAIN LOOP///////////////////////////
     for freq in 1..=max_freq {
-        let claimsaday = 365.0 / freq as f64;
+
         let daily_percent = interest_rate / freq as f64;
 
         let mut future_value_old = principal;
@@ -63,7 +77,7 @@ fn main() {
             future_value_old = future_value_new;
         }
 
-        let gain = future_value_old - principal;
+
         let claim_amount = (interest_rate / freq as f64) * principal;
         let fees = fee * freq as f64 * (1.0 + interest_rate);
         let strat_profit = future_value_new - untouched - fees;
@@ -77,35 +91,43 @@ fn main() {
 	
         if gains == "gains" {
             println!(
-                "{} {} {} {}",
-                format!("For frequency {}:", freq).cyan(),
-                format!("Yields: {:.5}", claim_amount).green(),
-                format!("Losing {:.5} to fees", fees).red(),
-                format!("Net profit: {:.5}", strat_profit).blue(),
+                "Claiming every {} days yields {}, losing {} to fees, with a net profit of {}.",
+                format!("{}", freq).cyan(),
+                format!("{:.2}", claim_amount).green(),
+                format!("{:.2}", fees).red(),
+                format!("{:.2}", strat_profit).blue(),
             );
         }
         
     }
-    let asset_name = &args[5];
+    ////END OF LOOP///////////////////////
+
     
-    println!("\n \n \n \n");
+    println!("\n");
     let freq_time = 365.0 / optimal_freq as f64;
     let optimal_freq_claim = principal * (interest_rate / optimal_freq as f64);
-    println!( "The optimal claiming frequency is {:.5} days which yields {:.5}. Yielding {:.5} more {:.5} than not compounding after a year.",
-        format!("{}",freq_time).bright_green(),
-        format!("{}",optimal_freq_claim).bright_green(),
-        format!("{}",optimal_strat_profit).bright_green(),
+    println!( "The optimal claiming frequency for a blance of {} is {} days. \nThis strategy yields {} per claim. With a new balance of {} and a total yearly gain of {}. \nThis strategy yielded you {} more {} than not frequenctly compounding.",
+	format!("{:.2}",principal).bright_yellow(),
+        format!("{:.2}",freq_time).bright_green(),
+        format!("{:.2}",optimal_freq_claim).bright_green(),
+        format!("{:.2}", optimal_freq_balance).bright_green(),
+        format!("{:.2}", optimal_freq_balance - principal).bright_green(),        
+        format!("{:.2}",optimal_strat_profit).bright_green(),
         format!("{}",asset_name).bright_blue(),
     ); 
-    println!("With a potential new balance of {} and a gain of {}", 
-        format!("{}", optimal_freq_balance).bright_green(),
-        format!("{}", optimal_freq_balance - principal).bright_green(),
+  //  println!("With a potential new balance of {} and a gain of {}",  );
+    println!("If you chose not to compound frequently, you would have only totaled {} with a claim of {}",
+    	format!("{:.2}", untouched).bright_red(),
+    	format!("{:.2}", untouched_claim).bright_red(),
     );
-    println!("If you chose not to compound, you would have only totaled {} with a claim of {}",
-    	format!("{}", untouched).bright_red(),
-    	format!("{}", untouched_claim).bright_red(),
-    );
+    println!("\n");    
     println!(" git status \n git add . or git add file name \n git commit -m Your commit message \n git push origin branch-name");
-    println!("\n \n \n \n");
+    println!("\n");
+//////////NOMIC COMMANDS FROM OTHER SCRIPTS//////////////////////////    
+    match nomic_commands::get_nomic_balance() {
+        Ok(balance) => println!("Nomic Balance: {}", balance),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+
 }
 

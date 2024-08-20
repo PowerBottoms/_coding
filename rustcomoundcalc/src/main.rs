@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::error::Error;
 use csv::ReaderBuilder;
 
-
 /////MODS///////////////
 mod nomic_commands;
 // Function to display the help section
@@ -28,89 +27,36 @@ fn display_help() {
     println!("  commission  The commission charged as decimal (e.g, 0.05 for 5%");
     println!();
     println!("Options:");
-    println!("  -h, --help  Display this help message and exit.");
+    println!("  h, help  Display this help message and exit.");
     println!();
     println!("Example:");
     println!("  <program> 1000 1.5 365 0.05 gains");
     process::exit(0);
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct ExecutionData {
-    principal: f64,
-    optimal_freq_claim: f64,
-}
 
-fn save_execution_data(principal: f64, optimal_freq_claim: f64) -> io::Result<()> {
-    let file_path = "execution_data.json";
-    let mut executions: HashMap<String, ExecutionData> = if Path::new(file_path).exists() {
-        let data = fs::read_to_string(file_path)?;
-        serde_json::from_str(&data).unwrap_or_default()
-    } else {
-        HashMap::new()
-    };
-
-    let mut i = 1;
-    while executions.contains_key(&format!("principal{}", i)) {
-        i += 1;
-    }
-
-    executions.insert(
-        format!("principal{}", i),
-        ExecutionData {
-            principal,
-            optimal_freq_claim,
-        },
-    );
-
-    let file = File::create(file_path)?;
-    let writer = BufWriter::new(file);
-    serde_json::to_writer(writer, &executions)?;
-
-    Ok(())
-}
-
-fn print_execution_data() -> io::Result<()> {
-    let file_path = "execution_data.json";
-    let mut data = fs::read_to_string(file_path)?;
-    let mut executions: HashMap<String, ExecutionData> = serde_json::from_str(&data)?;
-
-    // Convert HashMap to a Vec of tuples and keep only the last 5 entries
-    let mut entries: Vec<(String, ExecutionData)> = executions.into_iter().collect();
-    entries.sort_by_key(|(key, _)| key.clone()); // Ensure you sort by key if needed
-    entries.truncate(5); // Keep only the most recent 5 entries
-
-    // Convert Vec back to HashMap
-    let trimmed_executions: HashMap<String, ExecutionData> = entries.into_iter().collect();
-
-    // Save the updated data back to the file
-    let updated_data = serde_json::to_string(&trimmed_executions)?;
-    fs::write(file_path, updated_data)?;
-
-    // Print the saved data
-    for (i, (key, value)) in trimmed_executions.iter().enumerate() {
-        println!(
-            "Save {}: With a principal of {} you should compound when you have claimable balance of {} ",
-            i + 1,
-            format! ("{}",value.principal).to_string().green(),
-            format! ("{:.2}",value.optimal_freq_claim).to_string().green()
-        );
-    }
-
-    Ok(())
-}
 ////////MAIN////////////////////////////////////////////////////
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
     let args: Vec<String> = env::args().collect();
     let save_data = args.contains(&"-save".to_string());        
-    if args.len() < 4 {
-        eprintln!("Usage: <program> <principal> <fee> <max_freq> <interest rate> OPTIONAL: <asset name>, <gains>");
-        eprintln!("Try '<program> --help' for more information.");
+    if args.len() < 4 && !args.contains(&"dels".to_string()) && !args.contains(&String::from("h")) && !args.contains(&String::from("help")) {
+        eprintln!("Usage: <principal> <fee> <max_freq> <interest rate> <commission>OPTIONAL: <asset name>, <gains>");
+        eprintln!("Try: dels command option to gather addresses and shares");        
+        eprintln!("Try h or help");
+
         process::exit(1);
     }
-
-    if args.contains(&String::from("-h")) || args.contains(&String::from("--help")) {
+    
+//////////////////DELEGATIONS COMMAND OPTION///////////////////////////////////////    
+    if args.contains(&"dels".to_string()) {
+        if let Err(e) = delegators() {
+            eprintln!("Error executing delegators: {}", e);
+        }
+        process::exit(0); // Exit after running delegators
+    }
+//////////////////HELP COMMAND OPTION///////////////////////////////////////   
+    if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
         display_help();
     }
 
@@ -221,7 +167,70 @@ fn main() -> io::Result<()> {
     Ok(())
     
 }
+#[derive(Serialize, Deserialize, Debug)]
+struct ExecutionData {
+    principal: f64,
+    optimal_freq_claim: f64,
+}
 
+fn save_execution_data(principal: f64, optimal_freq_claim: f64) -> io::Result<()> {
+    let file_path = "execution_data.json";
+    let mut executions: HashMap<String, ExecutionData> = if Path::new(file_path).exists() {
+        let data = fs::read_to_string(file_path)?;
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
+
+    let mut i = 1;
+    while executions.contains_key(&format!("principal{}", i)) {
+        i += 1;
+    }
+
+    executions.insert(
+        format!("principal{}", i),
+        ExecutionData {
+            principal,
+            optimal_freq_claim,
+        },
+    );
+
+    let file = File::create(file_path)?;
+    let writer = BufWriter::new(file);
+    serde_json::to_writer(writer, &executions)?;
+
+    Ok(())
+}
+
+fn print_execution_data() -> io::Result<()> {
+    let file_path = "execution_data.json";
+    let mut data = fs::read_to_string(file_path)?;
+    let mut executions: HashMap<String, ExecutionData> = serde_json::from_str(&data)?;
+
+    // Convert HashMap to a Vec of tuples and keep only the last 5 entries
+    let mut entries: Vec<(String, ExecutionData)> = executions.into_iter().collect();
+    entries.sort_by_key(|(key, _)| key.clone()); // Ensure you sort by key if needed
+    entries.truncate(5); // Keep only the most recent 5 entries
+
+    // Convert Vec back to HashMap
+    let trimmed_executions: HashMap<String, ExecutionData> = entries.into_iter().collect();
+
+    // Save the updated data back to the file
+    let updated_data = serde_json::to_string(&trimmed_executions)?;
+    fs::write(file_path, updated_data)?;
+
+    // Print the saved data
+    for (i, (key, value)) in trimmed_executions.iter().enumerate() {
+        println!(
+            "Save {}: With a principal of {} you should compound when you have claimable balance of {} ",
+            i + 1,
+            format! ("{}",value.principal).to_string().green(),
+            format! ("{:.2}",value.optimal_freq_claim).to_string().green()
+        );
+    }
+
+    Ok(())
+}
 fn delegators() -> Result<(), Box<dyn Error>> {
     let file_path = "/home/vboxuser/Desktop/shares_output.csv";
 

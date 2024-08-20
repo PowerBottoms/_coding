@@ -196,7 +196,7 @@ fn main() -> io::Result<()> {
     	format!("{:.2}", untouched_claim).bright_red(),
     );
     println!("\n");    
-    println!(" git status \n git add . or git add file name \n git commit -m Your commit message \n git push origin branch-name");
+
     println!("\n");
 //////////NOMIC COMMANDS FROM OTHER SCRIPTS//////////////////////////    
     match nomic_commands::get_nomic_balance() {
@@ -209,9 +209,17 @@ fn main() -> io::Result<()> {
     }
     // Optionally, print all saved executions
     print_execution_data()?;
-    
-    Ok(())
 
+    // Execute the delegators function at the end of main
+    println!("\n"); 
+    if let Err(e) = delegators() {
+        eprintln!("Error executing delegators: {}", e);
+    }
+    println!("\n");    
+    println!(" git status \n git add . or git add file name \n git commit -m Your commit message \n git push origin branch-name");
+    println!("\n");
+    Ok(())
+    
 }
 
 fn delegators() -> Result<(), Box<dyn Error>> {

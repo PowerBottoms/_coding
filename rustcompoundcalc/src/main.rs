@@ -1,8 +1,8 @@
 //use std::process::Command;
+//use std::fs;
 use std::env;
 use std::process;
 use colored::*;
-//use std::fs;
 use serde::{Serialize, Deserialize};
 use std::fs::{self, File};
 use std::io::{self, BufWriter};
@@ -11,53 +11,57 @@ use std::collections::HashMap;
 use std::error::Error;
 use csv::ReaderBuilder;
 
+fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
+    if args.contains(&String::from("dels")) {
+        delegators()?;
+        process::exit(0);
+    }
+    
+    if args.contains(&String::from("saved")) {
+        print_execution_data()?;
+        process::exit(0);
+    }
+    
+    if args.contains(&String::from("git")) {
+        display_git_process();
+    }
+    
+    if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
+        display_help();
+    }
+
+    Ok(())
+}
+
+
 /////MODS///////////////
 //mod nomic_commands;
 ////////MAIN////////////////////////////////////////////////////
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
+    let mut gains = "";
+    
     let args: Vec<String> = env::args().collect();  
-//////////////////DELEGATIONS COMMAND OPTION///////////////////////////////////////    
-    if args.contains(&String::from("dels")) {
-        if let Err(e) = delegators() {
-            eprintln!("Error executing delegators: {}", e);
-        }
-        process::exit(0); // Exit after running 
-    }      
-//////////////////////CHECK SAVED DATA COMMAND////////////    
-    if args.contains(&String::from("saved")) {
-        if let Err(e) = print_execution_data() {
-            eprintln!("Error executing prin_execution_data: {}", e);
-        }
-        process::exit(0); // Exit after running 
-    }    
-////////////////////DISPLAY GIT PROCESS////////////////  
-    if args.contains(&String::from("git")) {
-        display_git_process();
-    }        
-//////////////////HELP COMMAND OPTION///////////////////////////////////////   
-    if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
-        display_help();
-     }
-///////////////////////////GAINS COMMAND OPTION//////////////////////////////////////////////// 
-let mut gains = "";   
-     if args.contains(&String::from("gains")) {
-     gains = "gains"
-     }
-	
+    if let Err(e) = handle_args(&args) {  // Pass a reference here
+        eprintln!("Error handling arguments: {}", e);
+        process::exit(1);
+    }
+    
+    if args.contains(&String::from("gains")) {
+      gains = "gains";
+    }
+
     ///////////////////ARGUMENTS////////////////////
     let principal: f64 = args[1].parse().expect("Invalid principal amount");
     let fee: f64 = args[2].parse().expect("Invalid fee amount");
     let max_freq: usize = args[3].parse().expect("Invalid maximum frequency");
     let mut interest_rate: f64 = args[4].parse().expect("Invalid interest rate");
     let commission: f64 = args[5].parse().expect("A commission value is required, put 0 if no commission");       
-  ////////////////////BEGINNING OF CALCULATIONS AND VARIABLES/////////////////////////////////////  
       let years = if let Some(years_arg) = args.iter().find(|&&ref arg| arg.starts_with("-years")) {
         years_arg.trim_start_matches("-years").parse::<f64>().unwrap_or(1.0) // Default to 1.0 if parsing fails
     } else {
-        1.0 // Default value if the argument is not provided
+        1.0 // Default 1 year if nothing added
     };
-   // let years: f64 = 20.0;
     interest_rate = interest_rate * years;
     let mut optimal_freq = 0;
     let mut max_profit = f64::MIN;

@@ -6,8 +6,8 @@ use regex::Regex; // Import the regex crate
 // use std::path::Path;
 
 fn main() -> io::Result<()> {
-    let file_path = "/home/vboxuser/Desktop/nomicexport.txt";
-    let output_file_path = "/home/vboxuser/Desktop/shares_output.csv";
+    let file_path = "/home/vboxuser/Desktop/Exports/nomicexport.txt";
+    let output_file_path = "/home/vboxuser/TestingCode/datasaves/shares_output.csv";
     let target_address = "nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u";
     let mut found_min_self_delegation = false;
     let mut capturing_addresses = false;

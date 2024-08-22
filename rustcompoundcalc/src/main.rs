@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use csv::ReaderBuilder;
 
+
+
 fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     if args.contains(&String::from("dels")) {
         delegators()?;
@@ -18,7 +20,7 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     }
     
     if args.contains(&String::from("saved")) {
-        print_execution_data()?;
+        print_calc_data()?;
         process::exit(0);
     }
     
@@ -31,6 +33,7 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+    
 }
 
 
@@ -39,9 +42,13 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
 ////////MAIN////////////////////////////////////////////////////
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
+        let args: Vec<String> = env::args().collect();  
+        if args.len() < 1 {
+        eprintln!("Error: Not enough arguments provided. You must provide at least one argument.");
+        process::exit(1);
+    }
     let mut gains = "";
     
-    let args: Vec<String> = env::args().collect();  
     if let Err(e) = handle_args(&args) {  // Pass a reference here
         eprintln!("Error handling arguments: {}", e);
         process::exit(1);
@@ -133,12 +140,12 @@ fn main() -> io::Result<()> {
 ////////////////SAVING DATA/////////////////////////////////////
  if let Some(slot_arg) = args.iter().find(|&&ref arg| arg.starts_with("-save")) {
         if let Ok(slot) = slot_arg.trim_start_matches("-save").parse::<usize>() {
-            save_execution_data(slot, principal, optimal_freq_claim, optimal_daystoclaim).expect("Failed to save execution data.");
+            save_calc_data(slot, principal, optimal_freq_claim, optimal_daystoclaim).expect("Failed to save execution data.");
         }
     }
 
     // Example of how to print the execution data
-    print_execution_data().expect("Failed to print execution data.");
+    print_calc_data().expect("Failed to print execution data.");
         Ok(())
 }
 ////////////END OF MAIN FUNCTION/////////////////////////
@@ -151,8 +158,8 @@ struct ExecutionData {
     
 }
 
-fn save_execution_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_daystoclaim: f64) -> io::Result<()> {
-    let file_path = "execution_data.json";
+fn save_calc_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_daystoclaim: f64) -> io::Result<()> {
+    let file_path = "/home/vboxuser/TestingCode/datasaves/calc_saves.json";
     let mut executions: HashMap<String, ExecutionData> = if Path::new(file_path).exists() {
         let data = fs::read_to_string(file_path)?;
         serde_json::from_str(&data).unwrap_or_default()
@@ -178,8 +185,8 @@ fn save_execution_data(slot: usize, principal: f64, optimal_freq_claim: f64, opt
     Ok(())
 }
 
-fn print_execution_data() -> io::Result<()> {
-    let file_path = "execution_data.json";
+fn print_calc_data() -> io::Result<()> {
+    let file_path = "/home/vboxuser/TestingCode/datasaves/calc_saves.json";
     let data = fs::read_to_string(file_path)?;
     let executions: HashMap<String, ExecutionData> = serde_json::from_str(&data)?;
 
@@ -204,7 +211,7 @@ fn print_execution_data() -> io::Result<()> {
 
 
 fn delegators() -> Result<(), Box<dyn Error>> {
-    let file_path = "/home/vboxuser/Desktop/shares_output.csv";
+    let file_path = "/home/vboxuser/TestingCode/datasaves/shares_output.csv";
     // Create a HashMap to store addresses and shares
     let mut address_shares: HashMap<String, f64> = HashMap::new();
     // Create a CSV reader

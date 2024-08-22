@@ -11,6 +11,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 regex = "1"
 csv = "1.1"
+rodio = "0.13"
 
 
 
@@ -19,3 +20,13 @@ csv = "1.1"
 name = "exporthandlerTest"
 path = "src/exporthandlerTest.rs"
 
+[[bin]]
+name = "compoundtimer"
+path = "src/compoundtimer.rs"
+
+
+#   .try_into().unwrap()
+# sudo fuser -v /dev/snd/*
+#pulseaudio -k  # Stop PulseAudio
+#pulseaudio --start  # Restart PulseAudio
+#pulseaudio -k  # Stop PulseAudio pulseaudio --start  # Restart PulseAudio

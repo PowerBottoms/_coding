@@ -10,8 +10,11 @@ use std::path::Path;
 use std::collections::HashMap;
 use std::error::Error;
 use csv::ReaderBuilder;
+use crate::display_help::display_help;
 
-
+/////MODS///////////////
+mod display_help;
+//mod nomic_commands;
 
 fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     if args.contains(&String::from("dels")) {
@@ -29,7 +32,7 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     }
     
     if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
-        display_help();
+	display_help(); 
     }
 
     Ok(())
@@ -37,8 +40,6 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
 }
 
 
-/////MODS///////////////
-//mod nomic_commands;
 ////////MAIN////////////////////////////////////////////////////
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
@@ -64,7 +65,7 @@ fn main() -> io::Result<()> {
     let max_freq: usize = args[3].parse().expect("Invalid maximum frequency");
     let mut interest_rate: f64 = args[4].parse().expect("Invalid interest rate");
     let commission: f64 = args[5].parse().expect("A commission value is required, put 0 if no commission");       
-      let years = if let Some(years_arg) = args.iter().find(|&&ref arg| arg.starts_with("-years")) {
+    let years = if let Some(years_arg) = args.iter().find(|&&ref arg| arg.starts_with("-years")) {
         years_arg.trim_start_matches("-years").parse::<f64>().unwrap_or(1.0) // Default to 1.0 if parsing fails
     } else {
         1.0 // Default 1 year if nothing added
@@ -105,23 +106,24 @@ fn main() -> io::Result<()> {
             optimal_strat_profit = strat_profit;
             optimal_freq_balance = future_value_new; // Store the future_value_new at the optimal frequency
         }
-	
+
         if gains == "gains" {
             println!(
                 "Claiming every {} days yields {}, losing {} to fees, with a net profit of {}.",
-                format!("{}", freq).cyan(),
+                format!("{:.2}", (years * 365.0) /freq as f64).cyan(),
                 format!("{:.2}", claim_amount).green(),
                 format!("{:.2}", fees).red(),
-                format!("{:.2}", strat_profit).blue(),
+                format!("{:.3}", strat_profit).blue(),
             );
         }
     }
 
     ////END OF LOOP///////////////////////
-    println!("\n");
+   // println!("\n");
     let optimal_daystoclaim = 365.0 * years / optimal_freq as f64;
     let optimal_freq_claim = principal * (interest_rate / optimal_freq as f64);
-    println!( "The optimal claiming frequency for a blance of {} is {} days for a {:.2} year term. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {:.2} after {} years. \nThis strategy yielded you {} more than not frequenctly compounding.",
+    println!( "The optimal {} claiming frequency for a blance of {} is {} days for a {:.2} year term. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {:.2} after {} years. \nThis strategy yielded you {} more than not frequenctly compounding.",
+    	format!("{:.2}",optimal_freq).bright_yellow(),
 	format!("{:.2}",principal).bright_yellow(),
         format!("{:.2}",optimal_daystoclaim).bright_green(),
         format!("{}",years).bright_green(),	        
@@ -136,7 +138,7 @@ fn main() -> io::Result<()> {
     	format!("{:.2}", untouched).bright_red(),
     	format!("{:.2}", untouched_claim).bright_red(),
     );
-    println!("\n");    
+   // println!("\n");    
 ////////////////SAVING DATA/////////////////////////////////////
  if let Some(slot_arg) = args.iter().find(|&&ref arg| arg.starts_with("-save")) {
         if let Ok(slot) = slot_arg.trim_start_matches("-save").parse::<usize>() {
@@ -145,7 +147,7 @@ fn main() -> io::Result<()> {
     }
 
     // Example of how to print the execution data
-    print_calc_data().expect("Failed to print execution data.");
+    //print_calc_data().expect("Failed to print execution data.");
         Ok(())
 }
 ////////////END OF MAIN FUNCTION/////////////////////////
@@ -159,7 +161,7 @@ struct ExecutionData {
 }
 
 fn save_calc_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_daystoclaim: f64) -> io::Result<()> {
-    let file_path = "/home/vboxuser/TestingCode/datasaves/calc_saves.json";
+    let file_path = "/home/vboxuser/_coding/datasaves/calc_saves.json";
     let mut executions: HashMap<String, ExecutionData> = if Path::new(file_path).exists() {
         let data = fs::read_to_string(file_path)?;
         serde_json::from_str(&data).unwrap_or_default()
@@ -168,7 +170,7 @@ fn save_calc_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_
     };
 
     // Use the provided slot for saving
-    let key = format!("principal{}", slot);
+    let key = format!("{}", slot);
     executions.insert(
         key,
         ExecutionData {
@@ -186,7 +188,7 @@ fn save_calc_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_
 }
 
 fn print_calc_data() -> io::Result<()> {
-    let file_path = "/home/vboxuser/TestingCode/datasaves/calc_saves.json";
+    let file_path = "/home/vboxuser/_coding/datasaves/calc_saves.json";
     let data = fs::read_to_string(file_path)?;
     let executions: HashMap<String, ExecutionData> = serde_json::from_str(&data)?;
 
@@ -198,20 +200,18 @@ fn print_calc_data() -> io::Result<()> {
     // Print the saved data with the actual slot number
     for (key, value) in entries.iter() {
         println!(
-            "Save {}: With a principal of {} you should compound when you have claimable balance of {} which is every {} days.",
+            "Save {}: With a principal of {} claim every {} days with a claimable balance of {} to yield the best results.",
             key,  // Use the slot number as stored in the key
             format!("{}", value.principal).green(),
-            format!("{:.2}", value.optimal_freq_claim).green(),
-            format!("{:.2}", value.optimal_daystoclaim).green()
+            format!("{:.2}", value.optimal_daystoclaim).green(),
+            format!("{:.2}", value.optimal_freq_claim).green()
         );
     }
-
     Ok(())
 }
 
-
 fn delegators() -> Result<(), Box<dyn Error>> {
-    let file_path = "/home/vboxuser/TestingCode/datasaves/shares_output.csv";
+    let file_path = "/home/vboxuser/_coding/datasaves/shares_output.csv";
     // Create a HashMap to store addresses and shares
     let mut address_shares: HashMap<String, f64> = HashMap::new();
     // Create a CSV reader
@@ -233,26 +233,7 @@ fn delegators() -> Result<(), Box<dyn Error>> {
         println!("Usage: <principal> <fee> <max_freq> <interest> <commission> optional: <asset name> <gains>");
     Ok(())
 }
-// Function to display the help section
-fn display_help() {
-    println!();
-    println!("This program calculates the future value of an investment over various frequencies, accounting for interest and fees.");
-    println!();
-    println!("Arguments:");
-    println!("  principal   The initial amount of money invested or loaned (e.g., 1000).");
-    println!("  fee         The fee per period (e.g., 1.5).");
-    println!("  max_freq    The maximum number of periods to test (e.g., 365).");
-    println!("  interest    The annual interest rate as a decimal (e.g., 0.05 for 5%).");
-    println!("  commission  The commission charged as decimal (e.g, 0.05 for 5%");
-    println!("  -save       To save a particular run if you wish to keep the data handy");    
-    println!("  saved       To access previous calculations");
-    println!("  git         For git commit process       ");
-    println!("  <gains>       To read out each compound calculations");
-    println!(" ");    
-    println!("Usage:<principal> <fee> <max_freq> <interest> <commission> optional: <-save> <gains> <git> <saved> <\"asset name\">");
-    println!("Example:  1000 0.01 365 0.26 0.05 <options>");
-    process::exit(0);
-}
+
 fn display_git_process() {  
     println!(" git status \n git add . or git add file name \n git commit -m Your commit message \n git push origin branch-name");
     process::exit(0);

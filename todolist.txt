@@ -1,0 +1,5 @@
+Making a program that calculate my balance based on apr and time and it informs me when to claim for each balance.
+Make a program that is used to learn a language.
+Make a sling app?
+Try vs code on linux.
+

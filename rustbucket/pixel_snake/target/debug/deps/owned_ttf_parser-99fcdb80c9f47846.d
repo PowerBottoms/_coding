@@ -1,0 +1,10 @@
+/home/vboxuser/_coding/rustbucket/pixel_snake/target/debug/deps/libowned_ttf_parser-99fcdb80c9f47846.rmeta: /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/lib.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/convert.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/owned.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/preparse.rs
+
+/home/vboxuser/_coding/rustbucket/pixel_snake/target/debug/deps/libowned_ttf_parser-99fcdb80c9f47846.rlib: /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/lib.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/convert.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/owned.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/preparse.rs
+
+/home/vboxuser/_coding/rustbucket/pixel_snake/target/debug/deps/owned_ttf_parser-99fcdb80c9f47846.d: /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/lib.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/convert.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/owned.rs /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/preparse.rs
+
+/home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/lib.rs:
+/home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/convert.rs:
+/home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/owned.rs:
+/home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/owned_ttf_parser-0.24.0/src/preparse.rs:

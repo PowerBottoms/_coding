@@ -1,0 +1,7 @@
+/home/vboxuser/_coding/rustbucket/pixel_snake/target/debug/deps/librustc_hash-449b4f68ddd88550.rmeta: /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/rustc-hash-1.1.0/src/lib.rs
+
+/home/vboxuser/_coding/rustbucket/pixel_snake/target/debug/deps/librustc_hash-449b4f68ddd88550.rlib: /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/rustc-hash-1.1.0/src/lib.rs
+
+/home/vboxuser/_coding/rustbucket/pixel_snake/target/debug/deps/rustc_hash-449b4f68ddd88550.d: /home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/rustc-hash-1.1.0/src/lib.rs
+
+/home/vboxuser/.cargo/registry/src/index.crates.io-6f17d22bba15001f/rustc-hash-1.1.0/src/lib.rs:

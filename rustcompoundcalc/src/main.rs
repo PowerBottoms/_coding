@@ -75,6 +75,7 @@ fn main() -> io::Result<()> {
     let mut max_profit = f64::MIN;
     let mut optimal_strat_profit = 0.0;
     let mut optimal_freq_balance = 0.0;
+    let mut bring_fees_out = 0.0;
     if commission > 0.0 
     {
     	interest_rate = interest_rate - (interest_rate * commission);  
@@ -97,8 +98,9 @@ fn main() -> io::Result<()> {
 		}		
         }
         let claim_amount = (interest_rate / freq as f64) * principal;
-        let fees = fee * freq as f64 * (1.0 + interest_rate);
+        let fees = fee * optimal_freq as f64 ;//* (1.0 + interest_rate);
         let strat_profit = future_value_new - untouched - fees;
+        bring_fees_out = fees;
 	
         if strat_profit > max_profit {
             max_profit = strat_profit;
@@ -109,10 +111,11 @@ fn main() -> io::Result<()> {
 
         if gains == "gains" {
             println!(
-                "Claiming every {} days yields {}, losing {} to fees, with a net profit of {}.",
+                "{}: Claiming every {} days yields {}, losing {} to fees, with a net profit of {}.",
+                format!("{}", freq).cyan(),
                 format!("{:.2}", (years * 365.0) /freq as f64).cyan(),
                 format!("{:.2}", claim_amount).green(),
-                format!("{:.2}", fees).red(),
+                format!("{:.2}", fee * freq as f64).red(),
                 format!("{:.3}", strat_profit).blue(),
             );
         }
@@ -122,18 +125,21 @@ fn main() -> io::Result<()> {
    // println!("\n");
     let optimal_daystoclaim = 365.0 * years / optimal_freq as f64;
     let optimal_freq_claim = principal * (interest_rate / optimal_freq as f64);
-    println!( "The optimal {} claiming frequency for a blance of {} is {} days for a {:.2} year term. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {:.2} after {} years. \nThis strategy yielded you {} more than not frequenctly compounding.",
+    println!( "{} claims per term for a blance of {} is {} days for a {:.2} year term, spending {} on fees. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {} after {} years. \nThis strategy yielded you {} more than not frequenctly compounding.",
     	format!("{:.2}",optimal_freq).bright_yellow(),
 	format!("{:.2}",principal).bright_yellow(),
         format!("{:.2}",optimal_daystoclaim).bright_green(),
-        format!("{}",years).bright_green(),	        
+        format!("{}",years).bright_green(),
+        format!("{:.2}",bring_fees_out).bright_red(),
+        //NEW LINE//////////////////////////////		        
         format!("{:.2}",optimal_freq_claim).bright_green(),
         format!("{:.2}", optimal_freq_balance).bright_green(),
         format!("{:.2}", optimal_freq_balance - principal).bright_green(),
-        format!("{}",years).bright_green(),                
+        format!("{}",years).bright_green(),  
+        //NEW LINES////////////////////////////////                   
         format!("{:.2}",optimal_strat_profit).bright_green(),
+        
     ); 
-    
     println!("If you chose not to compound frequently, you would have only totaled {} with a claim of {}",
     	format!("{:.2}", untouched).bright_red(),
     	format!("{:.2}", untouched_claim).bright_red(),

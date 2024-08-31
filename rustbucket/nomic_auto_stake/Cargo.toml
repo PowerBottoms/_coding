@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4"
+termcolor = "1.1"
+colored = "2.0"  # Check for the latest version on crates.io

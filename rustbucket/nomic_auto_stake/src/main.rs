@@ -3,10 +3,13 @@ use std::str;
 use std::thread;
 use std::time::Duration;
 use chrono::Local;
-
+use colored::*;
 fn main() {
 	println! ("================================START=============================================================");
-	let threshold = 20.78;
+	let mut current_value = 0.000000;
+	let mut previous_value = 0.000000;
+	let mut amntgained = 0.0;
+	let threshold = 18.52;
     // Loop indefinitely
     loop {
     	
@@ -27,7 +30,7 @@ fn main() {
             .lines()
             .find(|line| line.contains("liquid="))
             .expect("No liquid amount found");
-
+	
         // Extract the number directly after "liquid="
         let liquid_amount_str = liquid_str
             .splitn(2, "liquid=")  // Split into two parts at "liquid="
@@ -40,28 +43,33 @@ fn main() {
 
        // println!("Extracted liquid amount string: {}", liquid_amount_str);  // Debugging output
 
-        let liquid_amount: f64 = liquid_amount_str
+        let claimable_amount: f64 = liquid_amount_str
             .parse()
             .expect("Failed to parse liquid amount");
 	
         // Step 3: Divide by 1,000,000
-        let formatted_liquid = liquid_amount / 1_000_000.0;
-        
-        if formatted_liquid > threshold {
+        let formatted_claimable = claimable_amount / 1_000_000.0;
+	current_value = formatted_claimable;
+	amntgained = current_value - previous_value;	
+ 	
+        if formatted_claimable > threshold {
         let _ = Command::new("nomic")
             .arg("claim")
             .status()  // Use `.status()` instead of `.output()` to avoid capturing output
             .expect("Failed to execute claim command");
             prepare_compound();
-        }else {
-                println!("{} Claimable: {:.6}", formatted_time, formatted_liquid);
+        }
+       	if previous_value == 0.00000 && formatted_claimable < threshold{
+                println!("{} Claimable: {:.6}", formatted_time, formatted_claimable);
+        }else if previous_value != 0.00000 && formatted_claimable < threshold{
+        	println!("{} Claimable: {:.6}   + {:.6} Since last check", formatted_time, formatted_claimable, amntgained);
         }
 	
 	println! ("--------------------------------------------------------------------------------------");
-
-       thread::sleep(Duration::from_secs(1800));
-
+	previous_value = current_value;
+        thread::sleep(Duration::from_secs(900));
     }
+
 }
 
 
@@ -98,13 +106,17 @@ fn prepare_compound(){
          let nom_bal_amount: f64 = nom_bal_str
             .parse()
             .expect("Failed to parse balance amount");
-	let delegate_amount = nom_bal_amount - 50_000.0;
+	let delegate_amount = nom_bal_amount - 100_000.0;
     	let _ = Command::new("nomic")
         .arg("delegate")
         .arg("nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u")
         .arg(&delegate_amount.to_string())
         .status()
         .expect("Failed to execute command");
+        
+        let formatted_delegated: f64 = delegate_amount / 1_000_000.0;
+        println!("You have claimed and staked {}", formatted_delegated.to_string().bright_green());
+       // println! ("--------------------------------------------------------------------------------------");
 
 }
 

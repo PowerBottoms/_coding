@@ -44,12 +44,17 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
     let args: Vec<String> = env::args().collect();  
-    if args.len() < 5 {
-        eprintln!("Error: Not enough arguments provided. You must provide at least four arguments.");
+    if args.len() < 1 {
+        eprintln!("Error: Not enough arguments provided. You must provide at least one argument.");
         process::exit(1);
     }
-    
     let mut gains = "";
+    
+    if let Err(e) = handle_args(&args) {  // Pass a reference here
+        eprintln!("Error handling arguments: {}", e);
+        process::exit(1);
+    }
+
     if args.contains(&String::from("gains")) {
       gains = "gains";
     }
@@ -69,7 +74,7 @@ fn main() -> io::Result<()> {
         interest_rate -= interest_rate * commission;  
     }
     
-    let max_freq: usize = (years * 365.0) as usize;
+    let max_freq: usize = (years * 365.0 * 2.0) as usize;
     let untouched = (1.0 + interest_rate) * principal;
     let untouched_claim = interest_rate * principal;
     
@@ -110,7 +115,8 @@ fn main() -> io::Result<()> {
         if gains == "gains" {
             let marker = if freq == best_freq { "-found!-" } else { "" };
             println!(
-                "Claiming every {} days yields {}, losing {} to fees, with a net profit of {}, and a balance of {} {}",
+                "{} Claiming every {} days yields {}, losing {} to fees, with a net profit of {}, and a balance of {} {}",
+           	format!("{:.2}", freq),
                 format!("{:.2}", (years * 365.0) / freq as f64).cyan(),
                 format!("{:.2}", claim_amount).green(),
                 format!("{:.2}", fees).red(),
@@ -139,7 +145,11 @@ fn main() -> io::Result<()> {
         format!("{:.2}", untouched).bright_red(),
         format!("{:.2}", untouched_claim).bright_red(),
     );
-    
+        if let Some(slot_arg) = args.iter().find(|&&ref arg| arg.starts_with("-save")) {
+        if let Ok(slot) = slot_arg.trim_start_matches("-save").parse::<usize>() {
+            save_calc_data(slot, principal, optimal_freq_claim, optimal_daystoclaim)?;
+        }
+    }
     Ok(())
 }
 ////////////END OF MAIN FUNCTION/////////////////////////

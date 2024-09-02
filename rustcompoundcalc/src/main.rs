@@ -1,5 +1,6 @@
 //use std::process::Command;
 //use std::fs;
+use std::process::Command;
 use std::env;
 use std::process;
 use colored::*;
@@ -10,6 +11,7 @@ use std::path::Path;
 use std::collections::HashMap;
 use std::error::Error;
 use csv::ReaderBuilder;
+use std::str;
 use crate::display_help::display_help;
 
 /////MODS///////////////
@@ -33,6 +35,10 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     
     if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
 	display_help(); 
+    }
+    if args.contains(&String::from("next")) {
+    	calculate_voting_power_difference(); 
+    	process::exit(0);
     }
 
     Ok(())
@@ -239,5 +245,65 @@ fn delegators() -> Result<(), Box<dyn Error>> {
 fn display_git_process() {  
     println!(" git status \n git add . or git add file name \n git commit -m Your commit message \n git push origin branch-name");
     process::exit(0);
+}
+
+
+
+fn calculate_voting_power_difference() {
+    let target_address = "nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u";
+
+    // Run the `nomic validators` command
+    let output = Command::new("nomic")
+        .arg("validators")
+        .output()
+        .expect("Failed to execute command");
+
+    let output_str = str::from_utf8(&output.stdout).expect("Failed to convert to string");
+
+    // Find the target address and its voting power
+    let mut lines = output_str.lines();
+    let mut target_voting_power: Option<f64> = None;
+    let mut previous_voting_power: Option<f64> = None;
+    let mut previous_lines: Vec<&str> = Vec::new();
+
+    while let Some(line) = lines.next() {
+        // Keep track of the previous lines
+        if previous_lines.len() >= 4 {
+            previous_lines.remove(0); // Keep only the last four lines
+        }
+        previous_lines.push(line);
+
+        // Check for previous voting power before the target address
+        if line.contains("nomic1") && !line.contains(target_address) {
+            if let Some(vp_line) = lines.next() {
+                if let Some(vp_str) = vp_line.split("VOTING POWER: ").nth(1) {
+                    previous_voting_power = Some(vp_str.trim().replace(",", "").parse::<f64>().expect("Failed to parse previous voting power"));
+                  //  println!("Previous Voting Power Found: {:.10}", previous_voting_power.unwrap());
+                }
+            }
+        }
+
+        // Check for the target address voting power
+        if line.contains(target_address) {
+            if let Some(vp_line) = lines.next() {
+                if let Some(vp_str) = vp_line.split("VOTING POWER: ").nth(1) {
+                    target_voting_power = Some(vp_str.trim().replace(",", "").parse::<f64>().expect("Failed to parse target voting power"));
+                 //   println!("Target Voting Power Found: {:.10}", target_voting_power.unwrap());
+                }
+            }
+            break; // Stop searching after finding the target address
+        }
+    }
+
+	if let (Some(vp1), Some(vp2)) = (target_voting_power, previous_voting_power) {
+    	let vp1 = vp1 / 1_000_000.0;
+    	let vp2 = vp2 / 1_000_000.0;
+    	let difference = vp2 - vp1;
+    	println!("{}", format! ("The difference in voting power is: {:.4}",difference).yellow().on_black());
+   	// println!("Target Voting Power: {:.4}   Previous Voting Power: {:.4}", vp1, vp2);	
+	} else {	
+	 //   println!("Could not find the required voting powers.");
+	}
+
 }
 

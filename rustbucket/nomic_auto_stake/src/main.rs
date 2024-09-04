@@ -9,8 +9,12 @@ fn main() {
     let mut current_value = 0.000000;
     let mut previous_value = 0.000000;
     let mut amntgained = 0.0;
-    let triggertime = 600;
+    let triggertime = 1200 ;
     let threshold = 18.52;
+    let bal_output = Command::new("nomic")
+     .arg("balance")
+     .output()
+     .expect("Failed to execute command");
 
     loop {
         let current_time = Local::now();
@@ -65,16 +69,14 @@ fn main() {
             );
             let _time_to_claim = calc_tt_claim(formatted_claimable, threshold, amntgained, triggertime);
             println!("{}",format! ("Time to claim {}",_time_to_claim).bright_yellow().on_black());
-        }
-        
-        println!("{}", "--------------------------------------------------------------------------------------".bright_black().on_black());
-        calculate_voting_power_difference();
-
-        previous_value = current_value;
-        thread::sleep(Duration::from_secs(triggertime));
+       	    calculate_voting_power_difference(); 
+            println!("{}", "--------------------------------------------------------------------------------------".bright_black().on_black());
+        }          
+       previous_value = current_value;    
+       thread::sleep(Duration::from_secs(triggertime));
+  
     }
 }
-
 
 
 fn prepare_compound(){
@@ -111,6 +113,7 @@ fn prepare_compound(){
             .parse()
             .expect("Failed to parse balance amount");
 	let delegate_amount = nom_bal_amount - 100_000.0;
+	thread::sleep(Duration::from_secs(2));
     	let _ = Command::new("nomic")
         .arg("delegate")
         .arg("nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u")

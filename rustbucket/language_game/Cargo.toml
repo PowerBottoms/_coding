@@ -1,0 +1,11 @@
+[package]
+name = "language_game"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+colored = "2.0"  # Check for the latest version
+rand = "0.8"      # Check for the latest version
+open = "3.0" # used for making links
+urlencoding = "2.1"  # Add this line
+

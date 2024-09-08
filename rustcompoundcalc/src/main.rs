@@ -104,7 +104,6 @@ fn main() -> io::Result<()> {
             best_freq = freq;
         }
     }
-
     // Second loop to print with `-found!-` marker at the optimal frequency
     for freq in 1..=max_freq {
         let freq_percent = interest_rate / freq as f64;
@@ -130,9 +129,11 @@ fn main() -> io::Result<()> {
                 format!("{:.4}", future_value).yellow(),
                 marker
             );
+
         }
+
     }
-    
+        
     let optimal_daystoclaim = 365.0 * years / best_freq as f64;
     let optimal_freq_claim = principal * (interest_rate / best_freq as f64);
     println!( "The optimal {} claiming frequency for a balance of {} is {} days for a {} year term. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {} after {} years. \nThis strategy yielded you {} more than not frequently compounding.",

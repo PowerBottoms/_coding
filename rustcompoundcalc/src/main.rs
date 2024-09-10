@@ -1,5 +1,3 @@
-//use std::process::Command;
-//use std::fs;
 use std::process::Command;
 use std::env;
 use std::process;
@@ -16,145 +14,166 @@ use crate::display_help::display_help;
 
 /////MODS///////////////
 mod display_help;
-//mod nomic_commands;
 
 fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
     if args.contains(&String::from("dels")) {
         delegators()?;
         process::exit(0);
     }
-    
+
     if args.contains(&String::from("saved")) {
         print_calc_data()?;
         process::exit(0);
     }
-    
+
     if args.contains(&String::from("git")) {
         display_git_process();
     }
-    
+
     if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
-	display_help(); 
+        display_help();
     }
     if args.contains(&String::from("next")) {
-    	calculate_voting_power_difference(); 
-    	process::exit(0);
+        calculate_voting_power_difference();
+        process::exit(0);
     }
 
     Ok(())
-    
 }
-
-
-
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
-    let args: Vec<String> = env::args().collect();  
-    if args.len() < 1 {
-        eprintln!("Error: Not enough arguments provided. You must provide at least one argument.");
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 5 {
+        eprintln!("Error: Not enough arguments provided. You must provide at least four arguments.");
         process::exit(1);
     }
     let mut gains = "";
-    
-    if let Err(e) = handle_args(&args) {  // Pass a reference here
+
+    if let Err(e) = handle_args(&args) {
         eprintln!("Error handling arguments: {}", e);
         process::exit(1);
     }
 
     if args.contains(&String::from("gains")) {
-      gains = "gains";
+        gains = "gains";
     }
 
-    let principal: f64 = args[1].parse().expect("Invalid principal amount");
+    // Parse main input values
+    let mut principal: f64 = args[1].parse().expect("Invalid principal amount");
     let fee: f64 = args[2].parse().expect("Invalid fee amount");
     let mut interest_rate: f64 = args[3].parse().expect("Invalid interest rate");
-    let commission: f64 = args[4].parse().expect("A commission value is required, put 0 if no commission");       
+    let commission: f64 = args[4].parse().expect("A commission value is required, put 0 if no commission");
+
+    // Parse `years` argument (allow decimal points)
     let years = if let Some(years_arg) = args.iter().find(|&&ref arg| arg.starts_with("-years")) {
         years_arg.trim_start_matches("-years").parse::<f64>().unwrap_or(1.0)
     } else {
         1.0
     };
 
-    interest_rate = interest_rate * years;
+    // Parse `terms` argument (allow decimal points)
+    let terms = if let Some(terms_arg) = args.iter().find(|&&ref arg| arg.starts_with("-terms")) {
+        terms_arg.trim_start_matches("-terms").parse::<f64>().unwrap_or(1.0)
+    } else {
+        1.0
+    };
+
+    interest_rate *= years; // This should already handle decimals correctly
     if commission > 0.0 {
-        interest_rate -= interest_rate * commission;  
+        interest_rate -= interest_rate * commission;
     }
-    
-    let max_freq: usize = (years * 365.0 * 2.0) as usize;
-    let untouched = (1.0 + interest_rate) * principal;
-    let untouched_claim = interest_rate * principal;
-    
-    let mut best_freq = 0;
-    let mut best_balance = f64::MIN;
-    let mut best_profit = f64::MIN;
 
-    // First loop to find the optimal frequency
-    for freq in 1..=max_freq {
-        let freq_percent = interest_rate / freq as f64;
-        let mut future_value = principal;
-        
-        for _ in 0..freq {
-            future_value += (future_value * freq_percent) - fee;
-        }
-        
-        let strat_profit = future_value - untouched;
-        if strat_profit > best_profit {
-            best_profit = strat_profit;
-            best_balance = future_value;
-            best_freq = freq;
-        }
-    }
-    // Second loop to print with `-found!-` marker at the optimal frequency
-    for freq in 1..=max_freq {
-        let freq_percent = interest_rate / freq as f64;
-        let mut future_value = principal;
-        
-        for _ in 0..freq {
-            future_value += (future_value * freq_percent) - fee;
-        }
-        
-        let claim_amount = (interest_rate / freq as f64) * principal;
-        let fees = fee * freq as f64;
-        let strat_profit = future_value - untouched;
-        
-        if gains == "gains" {
-            let marker = if freq == best_freq { "-found!-" } else { "" };
-            println!(
-                "{} Claiming every {} days yields {}, losing {} to fees, with a net profit of {}, and a balance of {} {}",
-           	format!("{:.2}", freq),
-                format!("{:.2}", (years * 365.0) / freq as f64).cyan(),
-                format!("{:.2}", claim_amount).green(),
-                format!("{:.2}", fees).red(),
-                format!("{:.3}", strat_profit).blue(),
-                format!("{:.4}", future_value).yellow(),
-                marker
-            );
+    // Loop for the number of terms (use a loop that runs an integer number of times)
+    let term_iterations = terms.round() as usize; // Round to the nearest whole number
 
+    for _ in 0..term_iterations {
+        // Initialize variables for the current loop
+        let max_freq: usize = (years * 365.0 * 2.0) as usize;
+        let untouched = (1.0 + interest_rate) * principal;
+        let untouched_claim = interest_rate * principal;
+
+        let mut best_freq = 0;
+        let mut best_balance = f64::MIN;
+        let mut best_profit = f64::MIN;
+        let mut optimal_freq_claim = 0.0;
+        let mut optimal_daystoclaim = 0.0;
+
+        // First loop to find the optimal frequency
+        for freq in 1..=max_freq {
+            let freq_percent = interest_rate / freq as f64;
+            let mut future_value = principal;
+
+            for _ in 0..freq {
+                future_value += (future_value * freq_percent) - fee;
+            }
+
+            let strat_profit = future_value - untouched;
+            if strat_profit > best_profit {
+                best_profit = strat_profit;
+                best_balance = future_value;
+                best_freq = freq;
+            }
         }
 
-    }
-        
-    let optimal_daystoclaim = 365.0 * years / best_freq as f64;
-    let optimal_freq_claim = principal * (interest_rate / best_freq as f64);
-    println!( "The optimal {} claiming frequency for a balance of {} is {} days for a {} year term. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {} after {} years. \nThis strategy yielded you {} more than not frequently compounding.",
-        format!("{:.2}", best_freq).bright_yellow(),
-        format!("{:.2}", principal).bright_yellow(),
-        format!("{:.2}", optimal_daystoclaim).bright_green(),
-        format!("{:.3}", years).bright_green(),	        
-        format!("{:.2}", optimal_freq_claim).bright_green(),
-        format!("{:.2}", best_balance).bright_green(),
-        format!("{:.2}", best_balance - principal).bright_green(),
-        format!("{:.3}", years).bright_green(),                
-        format!("{:.2}", best_profit).bright_green(),
-    ); 
-    
-    println!("If you chose not to compound frequently, you would have only totaled {} with a claim of {}",
-        format!("{:.2}", untouched).bright_red(),
-        format!("{:.2}", untouched_claim).bright_red(),
-    );
+        // Second loop to print with `-found!-` marker at the optimal frequency
+        for freq in 1..=max_freq {
+            let freq_percent = interest_rate / freq as f64;
+            let mut future_value = principal;
+
+            for _ in 0..freq {
+                future_value += (future_value * freq_percent) - fee;
+            }
+
+            let claim_amount = (interest_rate / freq as f64) * principal;
+            let fees = fee * freq as f64;
+            let strat_profit = future_value - untouched;
+
+            if gains == "gains" {
+                let marker = if freq == best_freq { "-found!-" } else { "" };
+                println!(
+                    "{} Claiming every {} days yields {}, losing {} to fees, with a net profit of {}, and a balance of {} {}",
+                    format!("{:.2}", freq),
+                    format!("{:.2}", (years * 365.0) / freq as f64).cyan(),
+                    format!("{:.2}", claim_amount).green(),
+                    format!("{:.2}", fees).red(),
+                    format!("{:.3}", strat_profit).blue(),
+                    format!("{:.4}", future_value).yellow(),
+                    marker
+                );
+            }
+        }
+
+        // Store the optimal values for use in the final print
+        optimal_daystoclaim = 365.0 * years / best_freq as f64;
+        optimal_freq_claim = principal * (interest_rate / best_freq as f64);
+
+        println!(
+            "The optimal {} claiming frequency for a balance of {} is {} days for a {} year term. \nThis strategy yields {} per claim. With a new balance of {} and a total gain of {} after {} years. \nThis strategy yielded you {} more than not frequently compounding.",
+            format!("{:.2}", best_freq).bright_yellow(),
+            format!("{:.2}", principal).bright_yellow(),
+            format!("{:.4}", optimal_daystoclaim).bright_green(),
+            format!("{:.3}", years).bright_green(),
+            format!("{:.2}", optimal_freq_claim).bright_green(),
+            format!("{:.4}", best_balance).bright_green(),
+            format!("{:.2}", best_balance - principal).bright_green(),
+            format!("{:.3}", years).bright_green(),
+            format!("{:.2}", best_profit).bright_green(),
+        );
+
+        println!(
+            "If you chose not to compound frequently, you would have only totaled {} with a claim of {}",
+            format!("{:.2}", untouched).bright_red(),
+            format!("{:.2}", untouched_claim).bright_red(),
+        );
+
+        // Update principal for next term iteration
+        principal = best_balance;
+
+        // Save the data if the `-save` argument is provided
         if let Some(slot_arg) = args.iter().find(|&&ref arg| arg.starts_with("-save")) {
-        if let Ok(slot) = slot_arg.trim_start_matches("-save").parse::<usize>() {
-            save_calc_data(slot, principal, optimal_freq_claim, optimal_daystoclaim)?;
+            if let Ok(slot) = slot_arg.trim_start_matches("-save").parse::<usize>() {
+                save_calc_data(slot, principal, optimal_freq_claim, optimal_daystoclaim)?;
+            }
         }
     }
     Ok(())

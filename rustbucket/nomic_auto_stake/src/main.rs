@@ -4,13 +4,17 @@ use std::thread;
 use std::time::Duration;
 use chrono::Local;
 use colored::*;
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufRead, Write};
+use std::path::Path;
 
+//const DIFFS_FILE: &str = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/voting_power_diffs.txt"; // File to store highest differences
 fn main() {
     let mut current_value = 0.000000;
     let mut previous_value = 0.000000;
     let mut amntgained = 0.0;
-    let triggertime = 1200;
-    let threshold = 15.56;
+    let triggertime = 1;
+    let threshold = 19.48;
     let _bal_output = Command::new("nomic")
      .arg("balance")
      .output()
@@ -143,8 +147,27 @@ fn prepare_compound(){
 }     
 
 
+
+
 fn calculate_voting_power_difference() {
     let target_address = "nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u";
+    let file_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/voting_power_diffs.txt"; // File to save highest voting power differences
+
+    // Load highest voting powers from the file
+    let mut highest_differences = vec![0.0; 5]; // Assuming you want to keep track of the last 5 differences
+    if Path::new(file_path).exists() {
+        let file = File::open(file_path).expect("Unable to open file");
+        let reader = io::BufReader::new(file);
+        for (i, line) in reader.lines().enumerate() {
+            if i < 5 {
+                if let Ok(value) = line {
+                    if let Ok(diff) = value.trim().parse::<f64>() {
+                        highest_differences[i] = diff;
+                    }
+                }
+            }
+        }
+    }
 
     // Run the `nomic validators` command
     let output = Command::new("nomic")
@@ -222,56 +245,48 @@ fn calculate_voting_power_difference() {
         let vp3 = vp3 / 1_000_000.0;
         let vp4 = vp4 / 1_000_000.0;
         let vp5 = vp5 / 1_000_000.0;
-	let vp6 = vp6 / 1_000_000.0;
+        let vp6 = vp6 / 1_000_000.0;
+
         // Calculate differences
-        let difference_vp1_vp2 = vp2 - vp1;
-        let difference_vp1_vp3 = vp3 - vp1;
-        let difference_vp1_vp4 = vp4 - vp1;
-        let difference_vp1_vp5 = vp5 - vp1;
-	let difference_vp1_vp6 = vp6 - vp1;
-        // Print differences along with corresponding monikers
-        if let Some(moniker2) = monikers.get(1) {
-            println!(
-                "{}",
-                format!("(1) {:.2} : {}", difference_vp1_vp2, moniker2)
-                    .yellow()
-                    .on_black()
-            );
+        let differences = [
+            vp2 - vp1,
+            vp3 - vp1,
+            vp4 - vp1,
+            vp5 - vp1,
+            vp6 - vp1,
+        ];
+
+        // Print differences along with corresponding monikers and highest differences
+        for (i, diff) in differences.iter().enumerate() {
+            if let Some(moniker) = monikers.get(i + 1) {
+                let is_highest = *diff < highest_differences[i];
+                if is_highest {
+                    highest_differences[i] = *diff; // Update highest difference
+                }
+                // Print current difference and highest difference next to it
+// Print current difference and highest difference next to it
+println!(
+    "{} | {} | Highest: {} | {}",
+    format!("({})", i + 1).yellow(),
+    format!("{:.2}",diff).bright_yellow(),
+    format! ("{:.2}",highest_differences[i]).green(),
+    moniker
+);
+
+            }
         }
-        if let Some(moniker3) = monikers.get(2) {
-            println!(
-                "{}",
-                format!("(2) {:.2} : {}", difference_vp1_vp3, moniker3)
-                    .yellow()
-                    .on_black()
-            );
+
+        // Save the highest differences back to the file
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true) // Truncate the file to overwrite
+            .open(file_path)
+            .expect("Unable to open file for writing");
+        for diff in highest_differences.iter() {
+            writeln!(file, "{:.2}", diff).expect("Unable to write to file");
         }
-        if let Some(moniker4) = monikers.get(3) {
-            println!(
-                "{}",
-                format!("(3) {:.2} : {}", difference_vp1_vp4, moniker4)
-                    .yellow()
-                    .on_black()
-            );
-        }
-        if let Some(moniker5) = monikers.get(4) {
-            println!(
-                "{}",
-                format!("(4) {:.2} : {}", difference_vp1_vp5, moniker5)
-                    .yellow()
-                    .on_black()
-            );
-        }
-        if let Some(moniker6) = monikers.get(5) {
-            println!(
-                "{}",
-                format!("(5) {:.2} : {}", difference_vp1_vp6, moniker6)
-                    .yellow()
-                    .on_black()
-            );
-        }        
     } else {
         println!("Could not find all required voting powers.");
     }
 }
-

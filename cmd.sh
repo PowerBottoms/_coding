@@ -10,8 +10,11 @@ display_help() {
     echo "cmd.sh <-pow>          The power of 36 to the 36"
 }
 
+# Debugging: Print passed arguments
+echo "Arguments passed: $@"
+
 # Check if no arguments are supplied
-if [ $# -le 1 ]; then
+if [ $# -le 0 ]; then
     echo "Error: No arguments supplied."
     display_help
     exit 1
@@ -40,6 +43,8 @@ for arg in "$@"; do
             exit 0
             ;;
         export)
+            echo "Running export command..."
+            mkdir -p ~/Desktop/Exports
             nomic export > ~/Desktop/Exports/nomicexport.txt
             exit 0
             ;;

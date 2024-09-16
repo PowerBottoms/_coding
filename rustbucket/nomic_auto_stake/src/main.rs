@@ -1,24 +1,26 @@
 use std::process::{Command, exit};
 use std::str;
 use std::thread;
-use std::time::Duration;
-use chrono::Local;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use chrono::{Local, DateTime, Utc, Duration as ChronoDuration, Timelike};
 use colored::*;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, Write};
 use std::path::Path;
+use std::collections::HashMap;
 
-//const DIFFS_FILE: &str = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/voting_power_diffs.txt"; // File to store highest differences
+
 fn main() {
+    let num_comparisons = 31; 
     let mut current_value = 0.000000;
     let mut previous_value = 0.000000;
     let mut amntgained = 0.0;
-    let triggertime = 1;
-    let threshold = 19.48;
+    let triggertime = 600;
+    let threshold = 4.24;
     let _bal_output = Command::new("nomic")
-     .arg("balance")
-     .output()
-     .expect("Failed to execute command");
+        .arg("balance")
+        .output()
+        .expect("Failed to execute command");
 
     loop {
         let current_time = Local::now();
@@ -73,15 +75,22 @@ fn main() {
             );
             let _time_to_claim = calc_tt_claim(formatted_claimable, threshold, amntgained, triggertime);
             println!("{}",format! ("Time to claim {}",_time_to_claim).bright_yellow().on_black());
-       	    calculate_voting_power_difference(); 
+            
+            // Calculate voting power spreads and get vp1 if available
+            if let Some(vp1) = calculate_voting_power_spreads(num_comparisons) {
+                // Calculate APR with vp1
+                let apr = calculate_apr(vp1, triggertime, amntgained);
+                println!("Current APR: {:.4}%", apr);
+            } else {
+                println!("Failed to calculate APR due to missing voting power.");
+            }
+
             println!("{}", "--------------------------------------------------------------------------------------".bright_black().on_black());
         }          
        previous_value = current_value;    
        thread::sleep(Duration::from_secs(triggertime));
-  
     }
 }
-
 
 fn prepare_compound(){
         ////////NOM BALANCE///////////////////////////////
@@ -148,28 +157,42 @@ fn prepare_compound(){
 
 
 
-
-fn calculate_voting_power_difference() {
+fn calculate_voting_power_spreads(num_comparisons: usize) -> Option<f64>  {
     let target_address = "nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u";
-    let file_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/voting_power_diffs.txt"; // File to save highest voting power differences
+    let file_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/voting_power_diffs.txt"; // File to save smallest spreads
+    let current_spreads_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/current_voting_power_spreads.txt"; // File to save current spreads
 
-    // Load highest voting powers from the file
-    let mut highest_differences = vec![0.0; 5]; // Assuming you want to keep track of the last 5 differences
+    // Load smallest spreads from the file
+    let mut smallest_spreads = vec![f64::INFINITY; num_comparisons];
+    let mut current_spreads = Vec::new();
     if Path::new(file_path).exists() {
         let file = File::open(file_path).expect("Unable to open file");
         let reader = io::BufReader::new(file);
         for (i, line) in reader.lines().enumerate() {
-            if i < 5 {
+            if i < num_comparisons {
                 if let Ok(value) = line {
-                    if let Ok(diff) = value.trim().parse::<f64>() {
-                        highest_differences[i] = diff;
+                    if let Ok(spread) = value.trim().parse::<f64>() {
+                        smallest_spreads[i] = spread;
                     }
                 }
             }
         }
     }
 
-    // Run the `nomic validators` command
+    // Load current spreads if they exist
+    if Path::new(current_spreads_path).exists() {
+        let file = File::open(current_spreads_path).expect("Unable to open file");
+        let reader = io::BufReader::new(file);
+        for line in reader.lines() {
+            if let Ok(value) = line {
+                if let Ok(spread) = value.trim().parse::<f64>() {
+                    current_spreads.push(spread);
+                }
+            }
+        }
+    }
+
+    // Run the nomic validators command
     let output = Command::new("nomic")
         .arg("validators")
         .output()
@@ -181,7 +204,7 @@ fn calculate_voting_power_difference() {
     let lines = output_str.lines().collect::<Vec<_>>();
     let mut target_voting_power: Option<f64> = None;
     let mut voting_powers: Vec<f64> = Vec::new();
-    let mut monikers: Vec<String> = Vec::new(); // Vector to store monikers
+    let mut monikers: Vec<String> = Vec::new();
 
     // Look for the target address, its voting power, and moniker
     let mut target_index: Option<usize> = None;
@@ -194,24 +217,23 @@ fn calculate_voting_power_difference() {
                 }
             }
 
-            if let Some(moniker_line) = lines.get(i + 2) {  // Moniker should be two lines down
-                let moniker = moniker_line.replace("MONIKER: ", "");  // Remove "MONIKER: " prefix
+            if let Some(moniker_line) = lines.get(i + 2) {
+                let moniker = moniker_line.replace("MONIKER: ", "");
                 monikers.push(moniker.trim().to_string());
             }
 
-            break; // Stop searching once the target address is found
+            break;
         }
     }
 
     // If the target address is found, look back for previous addresses, voting powers, and monikers
     if let Some(index) = target_index {
         let mut look_back_count = 0;
-        let mut i = index as isize - 1; // Start looking back from the line before the target address
+        let mut i = index as isize - 1;
 
-        while look_back_count < 5 && i >= 0 {
+        while look_back_count < num_comparisons && i >= 0 {
             let line = lines[i as usize];
             if line.contains("nomic1") {
-                // Find the voting power line (next line)
                 if let Some(vp_line) = lines.get(i as usize + 1) {
                     if let Some(vp_str) = vp_line.split("VOTING POWER: ").nth(1) {
                         let voting_power = vp_str.trim().replace(",", "").parse::<f64>().expect("Failed to parse voting power");
@@ -219,74 +241,138 @@ fn calculate_voting_power_difference() {
                     }
                 }
 
-                // Capture the moniker line (two lines below the address)
                 if let Some(moniker_line) = lines.get(i as usize + 2) {
-                    let moniker = moniker_line.replace("MONIKER: ", "");  // Remove "MONIKER: " prefix
+                    let moniker = moniker_line.replace("MONIKER: ", "");
                     monikers.push(moniker.trim().to_string());
                 }
 
-                look_back_count += 1; // Only increment when a nomic1 address is found
+                look_back_count += 1;
             }
-            i -= 1; // Continue looking back
+            i -= 1;
         }
     }
 
-    // If we have the target voting power and at least two previous voting powers, calculate the differences
-    if let (Some(vp1), Some(vp2), Some(vp3), Some(vp4), Some(vp5), Some(vp6)) = (
-        target_voting_power,
-        voting_powers.get(0).cloned(),
-        voting_powers.get(1).cloned(),
-        voting_powers.get(2).cloned(),
-        voting_powers.get(3).cloned(),
-        voting_powers.get(4).cloned(),        
-    ) {
-        let vp1 = vp1 / 1_000_000.0;
-        let vp2 = vp2 / 1_000_000.0;
-        let vp3 = vp3 / 1_000_000.0;
-        let vp4 = vp4 / 1_000_000.0;
-        let vp5 = vp5 / 1_000_000.0;
-        let vp6 = vp6 / 1_000_000.0;
+    // If we have the target voting power and enough previous voting powers, calculate the spreads
+    if let Some(vp1) = target_voting_power {
+        let vp1 = vp1;
 
-        // Calculate differences
-        let differences = [
-            vp2 - vp1,
-            vp3 - vp1,
-            vp4 - vp1,
-            vp5 - vp1,
-            vp6 - vp1,
-        ];
+        let voting_powers = voting_powers.into_iter().take(num_comparisons).collect::<Vec<_>>();
+        let monikers = monikers.into_iter().take(num_comparisons).collect::<Vec<_>>();
 
-        // Print differences along with corresponding monikers and highest differences
-        for (i, diff) in differences.iter().enumerate() {
+        let vp_spreads = voting_powers.iter().map(|&vp| (vp - vp1).abs()).collect::<Vec<_>>();
+
+        println!("      |   Current  | |    Best    |   Change  |   Moniker   |   Est. Time to Zero");
+        for (i, spread) in vp_spreads.iter().enumerate() {
             if let Some(moniker) = monikers.get(i + 1) {
-                let is_highest = *diff < highest_differences[i];
-                if is_highest {
-                    highest_differences[i] = *diff; // Update highest difference
-                }
-                // Print current difference and highest difference next to it
-// Print current difference and highest difference next to it
-println!(
-    "{} | {} | Highest: {} | {}",
-    format!("({})", i + 1).yellow(),
-    format!("{:.2}",diff).bright_yellow(),
-    format! ("{:.2}",highest_differences[i]).green(),
-    moniker
-);
+                let formatted_spread = spread / 1_000_000.0;
+                let formatted_best = smallest_spreads[i] / 1_000_000.0;
+                let spread_change = (formatted_spread - formatted_best).abs();
 
+                if formatted_spread < formatted_best {
+                    smallest_spreads[i] = *spread;
+                }
+
+                let spread_color = if formatted_spread > formatted_best { "red" } else { "green" };
+                let change_color = if spread_change > 0.0 { "yellow" } else { "green" };
+
+                // Estimate time to zero based on the current spreads
+                let est_time_to_zero = if current_spreads.len() >= 2 {
+                    let rate = (current_spreads[current_spreads.len() - 1] - current_spreads[current_spreads.len() - 2]) / (current_spreads.len() as f64);
+                    if rate != 0.0 {
+                        format!("{:.2} days", formatted_spread / rate)
+                    } else {
+                        "N/A".to_string()
+                    }
+                } else {
+                    "N/A".to_string()
+                };
+
+                println!(
+                    "{:>5} | {:>10} | | {:>10} | {:>10} | {} | {}",
+                    format!("({}) ", i + 1),
+                    format!("{:.2} ", formatted_spread).bright_yellow(),
+                    format!("{:.2} ", formatted_best).color(spread_color),
+                    format!("{:.2} ", spread_change).color(change_color),
+                    moniker,
+                    est_time_to_zero
+                );
             }
         }
 
-        // Save the highest differences back to the file
+        // Save the smallest spreads back to the file
         let mut file = OpenOptions::new()
             .write(true)
             .create(true)
-            .truncate(true) // Truncate the file to overwrite
+            .truncate(true)
             .open(file_path)
             .expect("Unable to open file for writing");
-        for diff in highest_differences.iter() {
-            writeln!(file, "{:.2}", diff).expect("Unable to write to file");
+        for spread in smallest_spreads.iter() {
+            writeln!(file, "{}", spread).expect("Unable to write to file");
         }
+
+        // Save current spreads every 12 hours
+        let current_time = Utc::now();
+        let midnight_time = current_time.date().and_hms(0, 0, 0);
+        
+        // Calculate hours since last midnight
+        let hours_since_midnight = (current_time - midnight_time).num_hours() as i64;
+
+        // Check if it's been 12 hours since last save
+        if hours_since_midnight % 12 == 0 {
+            let mut current_file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(true)
+                .open(current_spreads_path)
+                .expect("Unable to open file for writing");
+            for spread in vp_spreads.iter() {
+                writeln!(current_file, "{}", spread).expect("Unable to write to file");
+            }
+        }
+     return Some(vp1);
     } else {
-        println!("Could not find all required voting powers.");
+        println!("Could not find the target voting power.");
+        None
+    }
+}
+fn calculate_apr(vp1: f64, triggertime: u64, amntgained: f64) -> f64 {
+    // Step 1: Get the current staked amount
+    let output = Command::new("nomic")
+        .arg("delegations")
+        .output()
+        .expect("Failed to execute command");
+
+    let output_str = str::from_utf8(&output.stdout).expect("Failed to convert to string");
+
+    // Find the line containing the target address
+    let target_line = output_str.lines().find(|line| line.contains("nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u"));
+    
+    if let Some(line) = target_line {
+        // Extract the staked amount
+        let staked_str = line.split("staked=")
+            .nth(1)
+            .unwrap_or("0")
+            .split_whitespace()
+            .next()
+            .unwrap_or("0")
+            .replace(",", "");
+        
+        let staked_amount: f64 = staked_str.parse().expect("Failed to parse staked amount");
+	
+        // Step 2: Calculate x
+        let x = (vp1 - staked_amount) * 0.04 + staked_amount;
+
+        // Step 3: Calculate how many times triggertime goes into 365 days
+        let seconds_in_a_year = 365 * 24 * 60 * 60;
+        let intervals_per_year = seconds_in_a_year as f64 / triggertime as f64;
+
+        // Step 4: Calculate APR
+        let apr = ((amntgained * 1_000_000.0) / x) * intervals_per_year;
+
+        // Return APR as a percentage
+        apr * 1.0
+    } else {
+        println!("Could not find the target address in delegations.");
+        0.0 // Return 0 if we can't calculate APR
     }
 }

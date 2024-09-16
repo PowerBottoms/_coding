@@ -32,7 +32,9 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
 
     if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
         display_help();
+        process::exit(0);  // Exit after displaying help
     }
+
     if args.contains(&String::from("next")) {
         calculate_voting_power_difference();
         process::exit(0);
@@ -40,24 +42,31 @@ fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 5 {
-        eprintln!("Error: Not enough arguments provided. You must provide at least four arguments.");
-        process::exit(1);
-    }
-    let mut gains = "";
 
+    // Collect command-line arguments.
+    let args: Vec<String> = env::args().collect();
+
+    // First, handle arguments that require specific actions like "dels", "saved", etc.
     if let Err(e) = handle_args(&args) {
         eprintln!("Error handling arguments: {}", e);
         process::exit(1);
     }
 
+    // Now, check for the main input arguments, but only if not special commands.
+    if args.len() < 5 && args.len() > 1 {
+        eprintln!("Error: Not enough arguments provided. You must provide at least four arguments.");
+        process::exit(1);
+    }
+
+    // Process gains if the "gains" argument is present.
+    let mut gains = "";
     if args.contains(&String::from("gains")) {
         gains = "gains";
     }
-
+    
     // Parse main input values
     let mut principal: f64 = args[1].parse().expect("Invalid principal amount");
     let fee: f64 = args[2].parse().expect("Invalid fee amount");

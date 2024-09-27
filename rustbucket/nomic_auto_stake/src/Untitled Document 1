@@ -1,3 +1,4 @@
+126724108.00,548764298.00,700622132.00,790263636.00,2244689213.00,4929158383.00,5414504242.00,6157711975.00,8260157145.00,10987366421.00,11571634401.00,14193644907.00,14659938836.00,15519533073.00,15830134633.00,17393084603.00,17613773729.00,17761124248.00,18536177412.00,21649921695.00,23001526237.00,23218687997.00,26595846085.00,26987438625.00,27239884754.00,27885056674.00,29766453043.00,30525936982.00,31525131299.00,35543693790.00,37478678969.00
 999999999999999
 999999999999999
 999999999999999
@@ -9,6 +10,247 @@
 999999999999999
 999999999999999
 999999999999999
+fn calculate_voting_power_spreads(num_comparisons: usize) -> Option<f64> {
+    let target_address = "nomic1tvgzmmgy9lj3jvtqk2pagg0ng5rk8ajt5nc86u";
+    let best_spreads = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/best_vp_spreads.txt";
+    let worst_spreads_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/worst_voting_power_spreads.txt";
+    let current_spreads_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/current_vp_spreads.txt";
+    let weekly_spreads_path = "/home/vboxuser/_coding/rustbucket/nomic_auto_stake/src/weekly_spreads.txt";
+    let emoji_regex = Regex::new(r"[\p{Emoji}]").unwrap();
+
+    // Load smallest and largest spreads from the file
+    let mut smallest_spreads = vec![f64::INFINITY; num_comparisons];
+    let mut largest_spreads = vec![f64::NEG_INFINITY; num_comparisons];
+    let mut current_spreads = Vec::new();
+    let mut weekly_spreads = Vec::new();
+
+    // Load best spreads from the file
+    if Path::new(best_spreads).exists() {
+        let file = File::open(best_spreads).expect("Unable to open best spreads file");
+        let reader = io::BufReader::new(file);
+        for (i, line) in reader.lines().enumerate() {
+            if i < num_comparisons {
+                if let Ok(value) = line {
+                    if let Ok(spread) = value.trim().parse::<f64>() {
+                        smallest_spreads[i] = spread;
+                    }
+                }
+            }
+        }
+    }
+
+    // Load worst spreads from the file if it exists
+    if Path::new(worst_spreads_path).exists() {
+        let file = File::open(worst_spreads_path).expect("Unable to open worst spreads file");
+        let reader = io::BufReader::new(file);
+        for (i, line) in reader.lines().enumerate() {
+            if i < num_comparisons {
+                if let Ok(value) = line {
+                    if let Ok(spread) = value.trim().parse::<f64>() {
+                        largest_spreads[i] = spread;
+                    }
+                }
+            }
+        }
+    }
+
+    // Load current spreads if they exist
+    if Path::new(current_spreads_path).exists() {
+        let file = File::open(current_spreads_path).expect("Unable to open current spreads file");
+        let reader = io::BufReader::new(file);
+        for line in reader.lines() {
+            if let Ok(value) = line {
+                if let Ok(spread) = value.trim().parse::<f64>() {
+                    current_spreads.push(spread);
+                }
+            }
+        }
+    }
+
+    // Load weekly spreads from the file
+    if Path::new(weekly_spreads_path).exists() {
+        let file = File::open(weekly_spreads_path).expect("Unable to open weekly spreads file");
+        let reader = io::BufReader::new(file);
+        for line in reader.lines() {
+            if let Ok(value) = line {
+                if let Ok(spread) = value.trim().parse::<f64>() {
+                    weekly_spreads.push(spread);
+                }
+            }
+        }
+    }
+
+    // Run the nomic validators command
+    let output = Command::new("nomic")
+        .arg("validators")
+        .output()
+        .expect("Failed to execute command");
+
+    let output_str = str::from_utf8(&output.stdout).expect("Failed to convert to string");
+
+    // Find the target address, voting power, and moniker
+    let lines = output_str.lines().collect::<Vec<_>>();
+    let mut target_voting_power: Option<f64> = None;
+    let mut voting_powers: Vec<f64> = Vec::new();
+    let mut monikers: Vec<String> = Vec::new();
+
+    // Look for the target address, its voting power, and moniker
+    let mut target_index: Option<usize> = None;
+    for (i, line) in lines.iter().enumerate() {
+        if line.contains(target_address) {
+            target_index = Some(i);
+            if let Some(vp_line) = lines.get(i + 1) {
+                if let Some(vp_str) = vp_line.split("VOTING POWER: ").nth(1) {
+                    target_voting_power = Some(vp_str.trim().replace(",", "").parse::<f64>().expect("Failed to parse target voting power"));
+                }
+            }
+
+            if let Some(moniker_line) = lines.get(i + 2) {
+                let moniker = moniker_line.replace("MONIKER: ", "");
+                monikers.push(moniker.trim().to_string());
+            }
+
+            break;
+        }
+    }
+
+    // If the target address is found, look back for previous addresses, voting powers, and monikers
+    if let Some(index) = target_index {
+        let mut look_back_count = 0;
+        let mut i = index as isize - 1;
+
+        while look_back_count < num_comparisons && i >= 0 {
+            let line = lines[i as usize];
+            if line.contains("nomic1") {
+                if let Some(vp_line) = lines.get(i as usize + 1) {
+                    if let Some(vp_str) = vp_line.split("VOTING POWER: ").nth(1) {
+                        let voting_power = vp_str.trim().replace(",", "").parse::<f64>().expect("Failed to parse voting power");
+                        voting_powers.push(voting_power);
+                    }
+                }
+
+                if let Some(moniker_line) = lines.get(i as usize + 2) {
+                    let moniker = moniker_line.replace("MONIKER: ", "");
+                    monikers.push(moniker.trim().to_string());
+                }
+
+                look_back_count += 1;
+            }
+            i -= 1;
+        }
+    }
+
+    // If we have the target voting power and enough previous voting powers, calculate the spreads
+    if let Some(vp1) = target_voting_power {
+        let vp1 = vp1;
+
+        let voting_powers = voting_powers.into_iter().take(num_comparisons).collect::<Vec<_>>();
+        let monikers = monikers.into_iter().take(num_comparisons).collect::<Vec<_>>();
+
+        let vp_spreads = voting_powers.iter().map(|&vp| (vp - vp1).abs()).collect::<Vec<_>>();
+
+        println!("      |   Current  | |    Best    | |    Worst   |   Change   |         Moniker      |   Est. Time to Zero");
+
+        for (i, spread) in vp_spreads.iter().enumerate() {
+            if let Some(moniker) = monikers.get(i + 1) {
+                let formatted_spread = spread / 1_000_000.0;
+                let formatted_best = smallest_spreads[i] / 1_000_000.0;
+                let formatted_worst = largest_spreads[i] / 1_000_000.0;
+                let spread_change = (formatted_spread - formatted_best).abs();
+
+                // Remove emojis from the moniker
+                let clean_moniker = emoji_regex.replace_all(moniker, "").to_string();
+
+                // Truncate the moniker to a maximum of 17 characters
+                let truncated_moniker = if clean_moniker.len() > 17 {
+                    format!("{}...", &clean_moniker[..17])
+                } else {
+                    clean_moniker.clone()
+                };
+
+                // Update smallest and largest spreads
+                if formatted_spread < formatted_best {
+                    smallest_spreads[i] = *spread;
+                }
+                if formatted_spread > formatted_worst {
+                    largest_spreads[i] = *spread;
+                }
+
+                let spread_color = if formatted_spread > formatted_best { "red" } else { "green" };
+                let worst_color = if formatted_spread != formatted_worst { "yellow" } else { "red" };
+                let change_color = if spread_change > 0.0 { "yellow" } else { "green" };
+
+                // Calculate the ROC and estimate the time to zero for this specific spread
+                let weeks_to_zero = if weekly_spreads.len() > 1 {
+                    let week1 = weekly_spreads[0]; // First week's spread
+                    let latest_week = weekly_spreads[weekly_spreads.len() - 1]; // Most recent week's spread
+                    let num_weeks = weekly_spreads.len() as f64;
+
+                    // Calculate ROC for this specific moniker's spread
+                    let roc = (week1 - latest_week).abs() / num_weeks;
+
+                    // Estimate time to zero
+                    if roc != 0.0 {
+                        latest_week / roc // Weeks to zero
+                    } else {
+                        f64::INFINITY // Avoid division by zero, set to infinity
+                    }
+                } else {
+                    f64::INFINITY // Not enough data to calculate
+                };
+
+                // Print all the values including the estimated weeks to zero
+                println!(
+                    "{:>5} | {:>10} | | {:>10} | | {:>10} | {:>10} | {:<20} | {:<10.2}",
+                    format!("({}) ", i + 1),
+                    format!("{:.2} ", formatted_spread).bright_yellow(),
+                    format!("{:.2} ", formatted_best).color(spread_color),
+                    format!("{:.2} ", formatted_worst).color(worst_color),
+                    format!("{:.2} ", spread_change).color(change_color),
+                    truncated_moniker,
+                    weeks_to_zero // Print the estimated weeks to zero
+                );
+            }
+        }
+
+        // Append the current spread (calculated above) to the weekly spreads
+        weekly_spreads.push(vp_spreads[0]); // Push only the first spread (most recent)
+
+        // Keep the last 12 weeks' worth of data
+        if weekly_spreads.len() > 12 {
+            weekly_spreads.remove(0);
+        }
+
+        // Save the updated weekly spreads back to the file
+        let mut weekly_file = File::create(weekly_spreads_path).expect("Unable to create weekly spreads file");
+        for spread in &weekly_spreads {
+            writeln!(weekly_file, "{}", spread).expect("Unable to write to weekly spreads file");
+        }
+
+        // Calculate Rate of Change (ROC) and estimated time to zero
+        if weekly_spreads.len() > 1 {
+            let week1 = weekly_spreads[0]; // First week's spread
+            let latest_week = weekly_spreads[weekly_spreads.len() - 1]; // Most recent week's spread
+            let num_weeks = weekly_spreads.len() as f64;
+
+            // Calculate ROC: difference between week 1 and the most recent week, divided by the number of weeks passed
+            let roc = (week1 - latest_week).abs() / num_weeks;
+
+            // Estimate weeks to zero: current spread divided by ROC
+            let weeks_to_zero = latest_week / roc;
+
+            println!(
+                "Rate of Change (ROC): {:.2}, Estimated weeks to zero: {:.2}",
+                roc, weeks_to_zero
+            );
+        }
+
+        return Some(weekly_spreads[weekly_spreads.len() - 1] / 1_000_000.0); // Return most recent week's spread
+    }
+
+    None
+}
+
 999999999999999
 999999999999999
 999999999999999

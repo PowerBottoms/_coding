@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chrono = "0.4"
+chrono = "0.4.19"
 termcolor = "1.1"
 colored = "2.0"  # Check for the latest version on crates.io
+unicode-segmentation = "1.9.0"
+regex = "1"

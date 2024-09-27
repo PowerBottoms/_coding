@@ -15,33 +15,7 @@ use crate::display_help::display_help;
 /////MODS///////////////
 mod display_help;
 
-fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
-    if args.contains(&String::from("dels")) {
-        delegators()?;
-        process::exit(0);
-    }
 
-    if args.contains(&String::from("saved")) {
-        print_calc_data()?;
-        process::exit(0);
-    }
-
-    if args.contains(&String::from("git")) {
-        display_git_process();
-    }
-
-    if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
-        display_help();
-        process::exit(0);  // Exit after displaying help
-    }
-
-    if args.contains(&String::from("next")) {
-        calculate_voting_power_difference();
-        process::exit(0);
-    }
-
-    Ok(())
-}
 
 fn main() -> io::Result<()> {
     println!("==============================================================================================================================================");
@@ -69,20 +43,21 @@ fn main() -> io::Result<()> {
     
     // Parse main input values
     let mut principal: f64 = args[1].parse().expect("Invalid principal amount");
-    let fee: f64 = args[2].parse().expect("Invalid fee amount");
-    let mut interest_rate: f64 = args[3].parse().expect("Invalid interest rate");
-    let commission: f64 = args[4].parse().expect("A commission value is required, put 0 if no commission");
-
+    //let fee: f64 = args[2].parse().expect("Invalid fee amount");
+    let fee: f64 = 0.01;
+    let mut interest_rate: f64 = args[2].parse().expect("Invalid interest rate");
+    let commission: f64 = args[3].parse().expect("A commission value is required, put 0 if no commission");
+    let o_principal = principal;
     // Parse `years` argument (allow decimal points)
-    let years = if let Some(years_arg) = args.iter().find(|&&ref arg| arg.starts_with("-years")) {
-        years_arg.trim_start_matches("-years").parse::<f64>().unwrap_or(1.0)
+    let years = if let Some(years_arg) = args.iter().find(|&&ref arg| arg.starts_with("-y")) {
+        years_arg.trim_start_matches("-y").parse::<f64>().unwrap_or(1.0)
     } else {
         1.0
     };
 
     // Parse `terms` argument (allow decimal points)
-    let terms = if let Some(terms_arg) = args.iter().find(|&&ref arg| arg.starts_with("-terms")) {
-        terms_arg.trim_start_matches("-terms").parse::<f64>().unwrap_or(1.0)
+    let terms = if let Some(terms_arg) = args.iter().find(|&&ref arg| arg.starts_with("-t")) {
+        terms_arg.trim_start_matches("-t").parse::<f64>().unwrap_or(1.0)
     } else {
         1.0
     };
@@ -93,12 +68,12 @@ fn main() -> io::Result<()> {
     }
 
     // Loop for the number of terms (use a loop that runs an integer number of times)
-    let term_iterations = terms.round() as usize; // Round to the nearest whole number
+    let term_iterations = terms as usize; // Round to the nearest whole number
 
     for _ in 0..term_iterations {
         // Initialize variables for the current loop
         let max_freq: usize = (years * 365.0 * 2.0) as usize;
-        let untouched = (1.0 + interest_rate) * principal;
+        let untouched = (years + interest_rate) * principal;
         let untouched_claim = interest_rate * principal;
 
         let mut best_freq = 0;
@@ -140,7 +115,7 @@ fn main() -> io::Result<()> {
             if gains == "gains" {
                 let marker = if freq == best_freq { "-found!-" } else { "" };
                 println!(
-                    "{} Claiming every {} days yields {}, losing {} to fees, with a net profit of {}, and a balance of {} {}",
+                    "{} total claims. Claiming every {} days yields {}, losing {} to fees, with a net profit of {}, and a balance of {} {}",
                     format!("{:.2}", freq),
                     format!("{:.2}", (years * 365.0) / freq as f64).cyan(),
                     format!("{:.2}", claim_amount).green(),
@@ -181,7 +156,7 @@ fn main() -> io::Result<()> {
         // Save the data if the `-save` argument is provided
         if let Some(slot_arg) = args.iter().find(|&&ref arg| arg.starts_with("-save")) {
             if let Ok(slot) = slot_arg.trim_start_matches("-save").parse::<usize>() {
-                save_calc_data(slot, principal, optimal_freq_claim, optimal_daystoclaim)?;
+                save_calc_data(slot, o_principal, optimal_freq_claim, optimal_daystoclaim)?;
             }
         }
     }
@@ -191,13 +166,13 @@ fn main() -> io::Result<()> {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExecutionData {
-    principal: f64,
+    o_principal: f64,
     optimal_freq_claim: f64,
     optimal_daystoclaim: f64,
     
 }
 
-fn save_calc_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_daystoclaim: f64) -> io::Result<()> {
+fn save_calc_data(slot: usize, o_principal: f64, optimal_freq_claim: f64, optimal_daystoclaim: f64) -> io::Result<()> {
     let file_path = "/home/vboxuser/_coding/datasaves/calc_saves.json";
     let mut executions: HashMap<String, ExecutionData> = if Path::new(file_path).exists() {
         let data = fs::read_to_string(file_path)?;
@@ -211,7 +186,7 @@ fn save_calc_data(slot: usize, principal: f64, optimal_freq_claim: f64, optimal_
     executions.insert(
         key,
         ExecutionData {
-            principal,
+            o_principal,
             optimal_freq_claim,
             optimal_daystoclaim,
         },
@@ -239,13 +214,16 @@ fn print_calc_data() -> io::Result<()> {
         println!(
             "Save {}: With a principal of {} claim every {} days with a claimable balance of {} to yield the best results.",
             key,  // Use the slot number as stored in the key
-            format!("{}", value.principal).green(),
+            format!("{}", value.o_principal).green(),
             format!("{:.2}", value.optimal_daystoclaim).green(),
             format!("{:.2}", value.optimal_freq_claim).green()
         );
     }
     Ok(())
 }
+
+
+
 
 fn delegators() -> Result<(), Box<dyn Error>> {
     let file_path = "/home/vboxuser/_coding/datasaves/shares_output.csv";
@@ -271,9 +249,39 @@ fn delegators() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+
+
 fn display_git_process() {  
     println!(" git status \n git add . or git add file name \n git commit -m Your commit message \n git push origin branch-name");
     process::exit(0);
+}
+
+fn handle_args(args: &[String]) -> Result<(), Box<dyn Error>> {
+    if args.contains(&String::from("dels")) {
+        delegators()?;
+        process::exit(0);
+    }
+
+    if args.contains(&String::from("saved")) {
+        print_calc_data()?;
+        process::exit(0);
+    }
+
+    if args.contains(&String::from("git")) {
+        display_git_process();
+    }
+
+    if args.contains(&String::from("h")) || args.contains(&String::from("help")) {
+        display_help();
+        process::exit(0);  // Exit after displaying help
+    }
+
+    if args.contains(&String::from("next")) {
+        calculate_voting_power_difference();
+        process::exit(0);
+    }
+
+    Ok(())
 }
 
 
@@ -335,4 +343,5 @@ fn calculate_voting_power_difference() {
 	}
 
 }
+
 
